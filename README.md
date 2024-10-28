@@ -24,24 +24,30 @@ AbcUserManagement is a web API built with .NET 7 that provides JWT authenticatio
 
 ```
 AbcUserManagement/
-├── Controllers/
-│   └── UsersController.cs
-├── Middleware/
-│   └── ThrottlingMiddleware.cs
-├── Models/
-│   └── Role.cs
-├── Services/
-│   ├── IUserService.cs
-│   └── UserService.cs
-├── Data/
-│   ├── IUserRepository.cs
-│   └── UserRepository.cs
-├── Tests/
-│   ├── ThrottlingMiddlewareTests.cs
-│   └── UserServiceTests.cs
-├── Program.cs
-├── appsettings.json
-└── README.md
+│
+├── Testing
+│   ├── AbcUserManagement.IntegrationTests
+│   ├── AbcUserManagement.ServiceTests
+│   └── AbcUserManagement.UnitTests
+│
+└── AbcUserManagement
+    ├── Connected Services
+    ├── Controllers
+    │   └── UsersController.cs
+    ├── DataAccess
+    │   ├── IUserRepository.cs
+    │   └── UserRepository.cs
+    ├── Middleware
+    │   └── ThrottlingMiddleware.cs
+    ├── Models
+    │   └── Role.cs
+    ├── Properties
+    ├── Services
+    │   ├── IUserService.cs
+    │   └── UserService.cs
+    ├── appsettings.json
+    ├── Program.cs
+    └── README.md
 ```
 
 ## Setup Instructions
