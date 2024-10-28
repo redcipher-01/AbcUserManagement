@@ -103,7 +103,7 @@ AbcUserManagement/
 1. **Clone the Repository**
 
    ```bash
-   git clone https://github.com/your-repo/AbcUserManagement.git
+   git clone https://github.com/redcipher-01/AbcUserManagement.git
    cd AbcUserManagement
    ```
 
