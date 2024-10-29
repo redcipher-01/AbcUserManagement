@@ -7,6 +7,8 @@ using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using AbcUserManagement.Services;
 using AbcUserManagement.Models;
+using System;
+using System.Threading.Tasks;
 
 namespace AbcUserManagement.Controllers
 {
@@ -58,6 +60,7 @@ namespace AbcUserManagement.Controllers
                 Subject = new ClaimsIdentity(new[]
                 {
                     new Claim(ClaimTypes.Name, user.Username),
+                    new Claim("UserId", user.Id.ToString()),
                     new Claim(ClaimTypes.Role, user.Role.ToString()),
                     new Claim("CompanyId", user.CompanyId.ToString())
                 }),

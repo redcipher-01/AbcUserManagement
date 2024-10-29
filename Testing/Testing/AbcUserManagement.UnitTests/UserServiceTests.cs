@@ -54,22 +54,44 @@ namespace AbcUserManagement.UnitTests
         }
 
         [Test]
-        public async Task GetUsersByCompanyIdAsync_ShouldReturnUsers_WhenUsersExist()
+        public async Task GetUsersByCompanyIdAsync_ShouldReturnAllUsers_WhenRoleIsAdmin()
         {
             // Arrange
             var companyId = 1;
+            var role = Role.Admin.ToString();
             var expectedUsers = new List<User>
             {
-                new User { Id = 1, Username = "test1", CompanyId = companyId },
-                new User { Id = 2, Username = "test2", CompanyId = companyId }
+                new User { Id = 1, Username = "admin1", Role = Role.Admin, CompanyId = companyId },
+                new User { Id = 2, Username = "user1", Role = Role.User, CompanyId = companyId }
             };
             _userRepositoryMock.Setup(repo => repo.GetUsersByCompanyIdAsync(companyId)).ReturnsAsync(expectedUsers);
 
             // Act
-            var result = await _userService.GetUsersByCompanyIdAsync(companyId).ConfigureAwait(false);
+            var result = await _userService.GetUsersByCompanyIdAsync(companyId, role).ConfigureAwait(false);
 
             // Assert
             Assert.AreEqual(expectedUsers, result);
+        }
+
+        [Test]
+        public async Task GetUsersByCompanyIdAsync_ShouldReturnNonAdminUsers_WhenRoleIsUser()
+        {
+            // Arrange
+            var companyId = 1;
+            var role = Role.User.ToString();
+            var expectedUsers = new List<User>
+            {
+                new User { Id = 1, Username = "admin1", Role = Role.Admin, CompanyId = companyId },
+                new User { Id = 2, Username = "user1", Role = Role.User, CompanyId = companyId }
+            };
+            _userRepositoryMock.Setup(repo => repo.GetUsersByCompanyIdAsync(companyId)).ReturnsAsync(expectedUsers);
+
+            // Act
+            var result = await _userService.GetUsersByCompanyIdAsync(companyId, role).ConfigureAwait(false);
+
+            // Assert
+            Assert.AreEqual(1, result.Count());
+            Assert.AreEqual("user1", result.First().Username);
         }
 
         [Test]
@@ -77,10 +99,11 @@ namespace AbcUserManagement.UnitTests
         {
             // Arrange
             var companyId = 1;
+            var role = Role.Admin.ToString();
             _userRepositoryMock.Setup(repo => repo.GetUsersByCompanyIdAsync(companyId)).ReturnsAsync(new List<User>());
 
             // Act
-            var result = await _userService.GetUsersByCompanyIdAsync(companyId).ConfigureAwait(false);
+            var result = await _userService.GetUsersByCompanyIdAsync(companyId, role).ConfigureAwait(false);
 
             // Assert
             Assert.IsEmpty(result);
@@ -91,9 +114,10 @@ namespace AbcUserManagement.UnitTests
         {
             // Arrange
             var user = new User { Username = "test", PasswordHash = "hash", Role = Role.User, CompanyId = 1 };
+            var createdBy = "admin";
 
             // Act
-            await _userService.AddUserAsync(user).ConfigureAwait(false);
+            await _userService.AddUserAsync(user, createdBy).ConfigureAwait(false);
 
             // Assert
             _userRepositoryMock.Verify(repo => repo.AddUserAsync(user), Times.Once);
@@ -104,9 +128,10 @@ namespace AbcUserManagement.UnitTests
         {
             // Arrange
             var user = new User { Id = 1, Username = "test", PasswordHash = "hash", Role = Role.User, CompanyId = 1 };
+            var modifiedBy = "admin";
 
             // Act
-            await _userService.UpdateUserAsync(user).ConfigureAwait(false);
+            await _userService.UpdateUserAsync(user, modifiedBy).ConfigureAwait(false);
 
             // Assert
             _userRepositoryMock.Verify(repo => repo.UpdateUserAsync(user), Times.Once);

@@ -23,7 +23,7 @@ namespace AbcUserManagement.DataAccess
             try
             {
                 _logger.LogInformation("Getting user by ID: {Id}", id);
-                var sql = "SELECT * FROM Users WHERE Id = @Id";
+                var sql = "SELECT Id, Username, Password AS PasswordHash, Role, CompanyId, CreatedBy, CreatedDate, ModifiedBy, ModifiedDate FROM Users WHERE Id = @Id";
                 return await _dbConnection.QuerySingleOrDefaultAsync<User>(sql, new { Id = id }).ConfigureAwait(false);
             }
             catch (Exception ex)
@@ -38,7 +38,7 @@ namespace AbcUserManagement.DataAccess
             try
             {
                 _logger.LogInformation("Getting users by company ID: {CompanyId}", companyId);
-                var sql = "SELECT * FROM Users WHERE CompanyId = @CompanyId";
+                var sql = "SELECT Id, Username, Password AS PasswordHash, Role, CompanyId, CreatedBy, CreatedDate, ModifiedBy, ModifiedDate FROM Users WHERE CompanyId = @CompanyId";
                 return await _dbConnection.QueryAsync<User>(sql, new { CompanyId = companyId }).ConfigureAwait(false);
             }
             catch (Exception ex)
@@ -53,7 +53,7 @@ namespace AbcUserManagement.DataAccess
             try
             {
                 _logger.LogInformation("Getting user by username: {Username}", username);
-                var sql = "SELECT * FROM Users WHERE Username = @Username";
+                var sql = "SELECT Id, Username, Password AS PasswordHash, Role, CompanyId, CreatedBy, CreatedDate, ModifiedBy, ModifiedDate FROM Users WHERE Username = @Username";
                 return await _dbConnection.QuerySingleOrDefaultAsync<User>(sql, new { Username = username }).ConfigureAwait(false);
             }
             catch (Exception ex)
@@ -68,8 +68,18 @@ namespace AbcUserManagement.DataAccess
             try
             {
                 _logger.LogInformation("Adding user: {Username}", user.Username);
-                var sql = "INSERT INTO Users (Username, PasswordHash, Role, CompanyId) VALUES (@Username, @PasswordHash, @Role, @CompanyId)";
-                await _dbConnection.ExecuteAsync(sql, new { user.Username, user.PasswordHash, Role = user.Role.ToString(), user.CompanyId }).ConfigureAwait(false);
+                var sql = @"
+                    INSERT INTO Users (Username, Password, Role, CompanyId, CreatedBy, CreatedDate)
+                    VALUES (@Username, @PasswordHash, @Role, @CompanyId, @CreatedBy, @CreatedDate)";
+                await _dbConnection.ExecuteAsync(sql, new
+                {
+                    user.Username,
+                    user.PasswordHash,
+                    Role = user.Role.ToString(),
+                    user.CompanyId,
+                    user.CreatedBy,
+                    user.CreatedDate
+                }).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -83,8 +93,25 @@ namespace AbcUserManagement.DataAccess
             try
             {
                 _logger.LogInformation("Updating user: {Id}", user.Id);
-                var sql = "UPDATE Users SET Username = @Username, PasswordHash = @PasswordHash, Role = @Role WHERE Id = @Id";
-                await _dbConnection.ExecuteAsync(sql, new { user.Username, user.PasswordHash, Role = user.Role.ToString(), user.Id }).ConfigureAwait(false);
+                var sql = @"
+                    UPDATE Users
+                    SET Username = @Username,
+                        Password = @PasswordHash,
+                        Role = @Role,
+                        CompanyId = @CompanyId,
+                        ModifiedBy = @ModifiedBy,
+                        ModifiedDate = @ModifiedDate
+                    WHERE Id = @Id";
+                await _dbConnection.ExecuteAsync(sql, new
+                {
+                    user.Id,
+                    user.Username,
+                    user.PasswordHash,
+                    Role = user.Role.ToString(),
+                    user.CompanyId,
+                    user.ModifiedBy,
+                    user.ModifiedDate
+                }).ConfigureAwait(false);
             }
             catch (Exception ex)
             {

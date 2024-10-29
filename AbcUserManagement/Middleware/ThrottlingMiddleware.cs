@@ -21,9 +21,12 @@ namespace AbcUserManagement.Middleware
 
         public async Task InvokeAsync(HttpContext context)
         {
-            var userId = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var userId = context.User.FindFirst("UserId")?.Value;
+
             if (userId != null)
             {
+                _logger.LogInformation("Processing request for user: {UserId}", userId);
+
                 if (_requests.TryGetValue(userId, out var requestInfo))
                 {
                     var (timestamp, count) = requestInfo;
@@ -33,6 +36,7 @@ namespace AbcUserManagement.Middleware
                         {
                             _logger.LogWarning("User {UserId} has exceeded the request limit.", userId);
                             context.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+                            await context.Response.WriteAsync("Too many requests. Please try again later.");
                             return;
                         }
                         _requests[userId] = (timestamp, count + 1);

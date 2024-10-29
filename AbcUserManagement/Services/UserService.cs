@@ -1,7 +1,9 @@
 ﻿using AbcUserManagement.DataAccess;
 using AbcUserManagement.Models;
 using Microsoft.Extensions.Logging;
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace AbcUserManagement.Services
@@ -31,12 +33,19 @@ namespace AbcUserManagement.Services
             }
         }
 
-        public async Task<IEnumerable<User>> GetUsersByCompanyIdAsync(int companyId)
+        public async Task<IEnumerable<User>> GetUsersByCompanyIdAsync(int companyId, string role)
         {
             try
             {
                 _logger.LogInformation("Service: Getting users by company ID: {CompanyId}", companyId);
-                return await _userRepository.GetUsersByCompanyIdAsync(companyId).ConfigureAwait(false);
+                var users = await _userRepository.GetUsersByCompanyIdAsync(companyId).ConfigureAwait(false);
+
+                if (role == Role.User.ToString())
+                {
+                    users = users.Where(u => u.Role != Role.Admin);
+                }
+
+                return users;
             }
             catch (Exception ex)
             {
@@ -59,11 +68,13 @@ namespace AbcUserManagement.Services
             }
         }
 
-        public async Task AddUserAsync(User user)
+        public async Task AddUserAsync(User user, string createdBy)
         {
             try
             {
                 _logger.LogInformation("Service: Adding user: {Username}", user.Username);
+                user.CreatedBy = createdBy;
+                user.CreatedDate = DateTime.UtcNow;
                 await _userRepository.AddUserAsync(user).ConfigureAwait(false);
             }
             catch (Exception ex)
@@ -73,11 +84,13 @@ namespace AbcUserManagement.Services
             }
         }
 
-        public async Task UpdateUserAsync(User user)
+        public async Task UpdateUserAsync(User user, string modifiedBy)
         {
             try
             {
                 _logger.LogInformation("Service: Updating user: {Id}", user.Id);
+                user.ModifiedBy = modifiedBy;
+                user.ModifiedDate = DateTime.UtcNow;
                 await _userRepository.UpdateUserAsync(user).ConfigureAwait(false);
             }
             catch (Exception ex)

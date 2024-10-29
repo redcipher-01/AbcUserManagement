@@ -1,4 +1,5 @@
 ﻿using System;
+
 namespace AbcUserManagement.Models
 {
     public class User
@@ -8,6 +9,9 @@ namespace AbcUserManagement.Models
         public string PasswordHash { get; set; }
         public Role Role { get; set; } // Admin or User
         public int CompanyId { get; set; }
+        public string CreatedBy { get; set; }
+        public DateTime CreatedDate { get; set; }
+        public string ModifiedBy { get; set; }
+        public DateTime? ModifiedDate { get; set; }
     }
 }
-

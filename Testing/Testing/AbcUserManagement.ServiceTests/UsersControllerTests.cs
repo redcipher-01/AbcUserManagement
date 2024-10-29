@@ -1,281 +1,206 @@
-﻿using NUnit.Framework;
-using System.Net.Http;
+﻿using System.Collections.Generic;
+using System.Security.Claims;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Mvc.Testing;
-using AbcUserManagement;
-using System.Net.Http.Json;
+using AbcUserManagement.Controllers;
 using AbcUserManagement.Models;
+using AbcUserManagement.Services;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Moq;
-using System.Collections.Generic;
-using System.Security.Claims;
-using System.Net;
-using Microsoft.AspNetCore.TestHost;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.AspNetCore.Authentication;
-using AbcUserManagement.Controllers;
-using Microsoft.Extensions.Options;
-using Microsoft.VisualStudio.TestPlatform.TestHost;
-using System.Text.Encodings.Web;
+using NUnit.Framework;
 
-namespace AbcUserManagement.ServiceTests
+namespace AbcUserManagement.UnitTests
 {
     [TestFixture]
     public class UsersControllerTests
     {
-        private HttpClient _client;
+        private Mock<IUserService> _userServiceMock;
         private Mock<ILogger<UsersController>> _loggerMock;
+        private UsersController _usersController;
 
         [SetUp]
         public void SetUp()
         {
-            var appFactory = new WebApplicationFactory<Program>()
-                .WithWebHostBuilder(builder =>
-                {
-                    builder.ConfigureTestServices(services =>
-                    {
-                        services.AddAuthentication("Test")
-                            .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>("Test", options => { });
-                    });
-                });
-
-            _client = appFactory.CreateClient();
+            _userServiceMock = new Mock<IUserService>();
             _loggerMock = new Mock<ILogger<UsersController>>();
-        }
+            _usersController = new UsersController(_userServiceMock.Object, _loggerMock.Object);
 
-        [Test]
-        public async Task GetUsers_AsAdmin_ShouldReturnAllUsers()
-        {
-            // Arrange
-            var adminClaims = new List<Claim>
+            var user = new ClaimsPrincipal(new ClaimsIdentity(new Claim[]
             {
                 new Claim(ClaimTypes.Name, "admin"),
                 new Claim(ClaimTypes.Role, "Admin"),
                 new Claim("CompanyId", "1")
+            }, "mock"));
+
+            _usersController.ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext { User = user }
             };
-            var adminIdentity = new ClaimsIdentity(adminClaims, "TestAuthType");
-            var adminPrincipal = new ClaimsPrincipal(adminIdentity);
-
-            _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Test");
-
-            // Act
-            var response = await _client.GetAsync("/api/users").ConfigureAwait(false);
-
-            // Assert
-            response.EnsureSuccessStatusCode();
-            var users = await response.Content.ReadFromJsonAsync<IEnumerable<User>>().ConfigureAwait(false);
-            Assert.IsNotNull(users);
-            Assert.IsTrue(users.Any());
         }
 
         [Test]
-        public async Task GetUsers_AsUser_ShouldReturnUsersFromSameCompany()
+        public async Task GetUsers_ShouldReturnOk_WhenUsersExist()
         {
             // Arrange
-            var userClaims = new List<Claim>
+            var companyId = 1;
+            var users = new List<User>
             {
-                new Claim(ClaimTypes.Name, "user"),
-                new Claim(ClaimTypes.Role, "User"),
-                new Claim("CompanyId", "1")
+                new User { Id = 1, Username = "test1", CompanyId = companyId },
+                new User { Id = 2, Username = "test2", CompanyId = companyId }
             };
-            var userIdentity = new ClaimsIdentity(userClaims, "TestAuthType");
-            var userPrincipal = new ClaimsPrincipal(userIdentity);
-
-            _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Test");
+            _userServiceMock.Setup(service => service.GetUsersByCompanyIdAsync(companyId, "Admin")).ReturnsAsync(users);
 
             // Act
-            var response = await _client.GetAsync("/api/users").ConfigureAwait(false);
+            var result = await _usersController.GetUsers().ConfigureAwait(false);
 
             // Assert
-            response.EnsureSuccessStatusCode();
-            var users = await response.Content.ReadFromJsonAsync<IEnumerable<User>>().ConfigureAwait(false);
-            Assert.IsNotNull(users);
-            Assert.IsTrue(users.All(u => u.CompanyId == 1));
+            Assert.IsInstanceOf<OkObjectResult>(result);
+            var okResult = result as OkObjectResult;
+            Assert.AreEqual(users, okResult.Value);
         }
 
         [Test]
-        public async Task GetUsers_AsUser_ShouldNotReturnAdminUsers()
+        public async Task GetUserById_ShouldReturnOk_WhenUserExists()
         {
             // Arrange
-            var userClaims = new List<Claim>
-            {
-                new Claim(ClaimTypes.Name, "user"),
-                new Claim(ClaimTypes.Role, "User"),
-                new Claim("CompanyId", "1")
-            };
-            var userIdentity = new ClaimsIdentity(userClaims, "TestAuthType");
-            var userPrincipal = new ClaimsPrincipal(userIdentity);
-
-            _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Test");
+            var userId = 1;
+            var user = new User { Id = userId, Username = "test", CompanyId = 1 };
+            _userServiceMock.Setup(service => service.GetUserByIdAsync(userId)).ReturnsAsync(user);
 
             // Act
-            var response = await _client.GetAsync("/api/users").ConfigureAwait(false);
+            var result = await _usersController.GetUserById(userId).ConfigureAwait(false);
 
             // Assert
-            response.EnsureSuccessStatusCode();
-            var users = await response.Content.ReadFromJsonAsync<IEnumerable<User>>().ConfigureAwait(false);
-            Assert.IsNotNull(users);
-            Assert.IsTrue(users.All(u => u.Role != Role.Admin));
+            Assert.IsInstanceOf<OkObjectResult>(result);
+            var okResult = result as OkObjectResult;
+            Assert.AreEqual(user, okResult.Value);
         }
 
         [Test]
-        public async Task GetUserById_AsUser_ShouldReturnUserFromSameCompany()
+        public async Task GetUserById_ShouldReturnNotFound_WhenUserDoesNotExist()
         {
             // Arrange
-            var userClaims = new List<Claim>
-            {
-                new Claim(ClaimTypes.Name, "user"),
-                new Claim(ClaimTypes.Role, "User"),
-                new Claim("CompanyId", "1")
-            };
-            var userIdentity = new ClaimsIdentity(userClaims, "TestAuthType");
-            var userPrincipal = new ClaimsPrincipal(userIdentity);
-
-            _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Test");
-
-            var userId = 1; // Replace with a valid user ID from the same company
+            var userId = 1;
+            _userServiceMock.Setup(service => service.GetUserByIdAsync(userId)).ReturnsAsync((User)null);
 
             // Act
-            var response = await _client.GetAsync($"/api/users/{userId}").ConfigureAwait(false);
+            var result = await _usersController.GetUserById(userId).ConfigureAwait(false);
 
             // Assert
-            response.EnsureSuccessStatusCode();
-            var user = await response.Content.ReadFromJsonAsync<User>().ConfigureAwait(false);
-            Assert.IsNotNull(user);
-            Assert.AreEqual(1, user.CompanyId);
+            Assert.IsInstanceOf<NotFoundResult>(result);
         }
 
         [Test]
-        public async Task GetUserById_AsUser_ShouldReturnForbidden_ForDifferentCompany()
+        public async Task AddUser_ShouldReturnCreatedAtAction_WhenUserIsAdded()
         {
             // Arrange
-            var userClaims = new List<Claim>
+            var userRequest = new UserRequest { Username = "test", Password = "password", Role = "User", CompanyId = 1 };
+            var user = new User
             {
-                new Claim(ClaimTypes.Name, "user"),
-                new Claim(ClaimTypes.Role, "User"),
-                new Claim("CompanyId", "1")
+                Username = userRequest.Username,
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(userRequest.Password),
+                Role = Role.User,
+                CompanyId = userRequest.CompanyId
             };
-            var userIdentity = new ClaimsIdentity(userClaims, "TestAuthType");
-            var userPrincipal = new ClaimsPrincipal(userIdentity);
-
-            _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Test");
-
-            var userId = 2; // Replace with a valid user ID from a different company
+            _userServiceMock.Setup(service => service.AddUserAsync(It.IsAny<User>(), "admin")).Returns(Task.CompletedTask);
 
             // Act
-            var response = await _client.GetAsync($"/api/users/{userId}").ConfigureAwait(false);
+            var result = await _usersController.AddUser(userRequest).ConfigureAwait(false);
 
             // Assert
-            Assert.AreEqual(HttpStatusCode.Forbidden, response.StatusCode);
+            Assert.IsInstanceOf<CreatedAtActionResult>(result);
+            var createdAtActionResult = result as CreatedAtActionResult;
+            Assert.AreEqual("GetUserById", createdAtActionResult.ActionName);
         }
 
         [Test]
-        public async Task AddUser_AsAdmin_ShouldAddUser()
+        public async Task UpdateUser_ShouldReturnNoContent_WhenUserIsUpdated()
         {
             // Arrange
-            var adminClaims = new List<Claim>
+            var userRequest = new UserRequest { Username = "test", Password = "password", Role = "User", CompanyId = 1 };
+            var user = new User
             {
-                new Claim(ClaimTypes.Name, "admin"),
-                new Claim(ClaimTypes.Role, "Admin"),
-                new Claim("CompanyId", "1")
+                Id = 1,
+                Username = userRequest.Username,
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(userRequest.Password),
+                Role = Role.User,
+                CompanyId = userRequest.CompanyId
             };
-            var adminIdentity = new ClaimsIdentity(adminClaims, "TestAuthType");
-            var adminPrincipal = new ClaimsPrincipal(adminIdentity);
-
-            _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Test");
-
-            var user = new User { Username = "test", PasswordHash = "hash", Role = Role.User, CompanyId = 1 };
+            _userServiceMock.Setup(service => service.GetUserByIdAsync(user.Id)).ReturnsAsync(user);
+            _userServiceMock.Setup(service => service.UpdateUserAsync(It.IsAny<User>(), "admin")).Returns(Task.CompletedTask);
 
             // Act
-            var response = await _client.PostAsJsonAsync("/api/users", user).ConfigureAwait(false);
+            var result = await _usersController.UpdateUser(user.Id, userRequest).ConfigureAwait(false);
 
             // Assert
-            response.EnsureSuccessStatusCode();
-            var createdUser = await response.Content.ReadFromJsonAsync<User>().ConfigureAwait(false);
-            Assert.AreEqual(user.Username, createdUser.Username);
+            Assert.IsInstanceOf<NoContentResult>(result);
         }
 
         [Test]
-        public async Task UpdateUser_AsAdmin_ShouldUpdateUser()
+        public async Task DeleteUser_ShouldReturnNoContent_WhenUserIsDeleted()
         {
             // Arrange
-            var adminClaims = new List<Claim>
-            {
-                new Claim(ClaimTypes.Name, "admin"),
-                new Claim(ClaimTypes.Role, "Admin"),
-                new Claim("CompanyId", "1")
-            };
-            var adminIdentity = new ClaimsIdentity(adminClaims, "TestAuthType");
-            var adminPrincipal = new ClaimsPrincipal(adminIdentity);
-
-            _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Test");
-
-            var user = new User { Id = 1, Username = "test", PasswordHash = "hash", Role = Role.User, CompanyId = 1 };
-            var addResponse = await _client.PostAsJsonAsync("/api/users", user).ConfigureAwait(false);
-            addResponse.EnsureSuccessStatusCode();
-
-            user.Username = "updated_test";
+            var userId = 1;
+            var user = new User { Id = userId, CompanyId = 1 };
+            _userServiceMock.Setup(service => service.GetUserByIdAsync(userId)).ReturnsAsync(user);
+            _userServiceMock.Setup(service => service.DeleteUserAsync(userId)).Returns(Task.CompletedTask);
 
             // Act
-            var updateResponse = await _client.PutAsJsonAsync($"/api/users/{user.Id}", user).ConfigureAwait(false);
+            var result = await _usersController.DeleteUser(userId).ConfigureAwait(false);
 
             // Assert
-            updateResponse.EnsureSuccessStatusCode();
-            var getResponse = await _client.GetAsync($"/api/users/{user.Id}").ConfigureAwait(false);
-            getResponse.EnsureSuccessStatusCode();
-            var updatedUser = await getResponse.Content.ReadFromJsonAsync<User>().ConfigureAwait(false);
-            Assert.AreEqual("updated_test", updatedUser.Username);
+            Assert.IsInstanceOf<NoContentResult>(result);
         }
 
         [Test]
-        public async Task DeleteUser_AsAdmin_ShouldDeleteUser()
+        public async Task AddUser_ShouldReturnBadRequest_WhenCompanyIdMismatch()
         {
             // Arrange
-            var adminClaims = new List<Claim>
-            {
-                new Claim(ClaimTypes.Name, "admin"),
-                new Claim(ClaimTypes.Role, "Admin"),
-                new Claim("CompanyId", "1")
-            };
-            var adminIdentity = new ClaimsIdentity(adminClaims, "TestAuthType");
-            var adminPrincipal = new ClaimsPrincipal(adminIdentity);
-
-            _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Test");
-
-            var user = new User { Id = 1, Username = "test", PasswordHash = "hash", Role = Role.User, CompanyId = 1 };
-            var addResponse = await _client.PostAsJsonAsync("/api/users", user).ConfigureAwait(false);
-            addResponse.EnsureSuccessStatusCode();
+            var userRequest = new UserRequest { Username = "test", Password = "password", Role = "User", CompanyId = 2 };
 
             // Act
-            var deleteResponse = await _client.DeleteAsync($"/api/users/{user.Id}").ConfigureAwait(false);
+            var result = await _usersController.AddUser(userRequest).ConfigureAwait(false);
 
             // Assert
-            deleteResponse.EnsureSuccessStatusCode();
-            var getResponse = await _client.GetAsync($"/api/users/{user.Id}").ConfigureAwait(false);
-            Assert.AreEqual(HttpStatusCode.NotFound, getResponse.StatusCode);
+            Assert.IsInstanceOf<BadRequestObjectResult>(result);
         }
 
-        private class TestAuthHandler : AuthenticationHandler<AuthenticationSchemeOptions>
+        [Test]
+        public async Task UpdateUser_ShouldReturnBadRequest_WhenCompanyIdMismatch()
         {
-            public TestAuthHandler(IOptionsMonitor<AuthenticationSchemeOptions> options, ILoggerFactory logger, UrlEncoder encoder, ISystemClock clock)
-                : base(options, logger, encoder, clock)
+            // Arrange
+            var userRequest = new UserRequest { Username = "test", Password = "password", Role = "User", CompanyId = 2 };
+            var user = new User
             {
-            }
+                Id = 1,
+                Username = userRequest.Username,
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(userRequest.Password),
+                Role = Role.User,
+                CompanyId = 1
+            };
+            _userServiceMock.Setup(service => service.GetUserByIdAsync(user.Id)).ReturnsAsync(user);
 
-            protected override Task<AuthenticateResult> HandleAuthenticateAsync()
-            {
-                var claims = new[]
-                {
-                    new Claim(ClaimTypes.Name, "testuser"),
-                    new Claim(ClaimTypes.Role, "User"),
-                    new Claim("CompanyId", "1")
-                };
-                var identity = new ClaimsIdentity(claims, "TestAuthType");
-                var principal = new ClaimsPrincipal(identity);
-                var ticket = new AuthenticationTicket(principal, "TestAuthType");
+            // Act
+            var result = await _usersController.UpdateUser(user.Id, userRequest).ConfigureAwait(false);
 
-                return Task.FromResult(AuthenticateResult.Success(ticket));
-            }
+            // Assert
+            Assert.IsInstanceOf<BadRequestObjectResult>(result);
+        }
+
+        [Test]
+        public async Task DeleteUser_ShouldReturnBadRequest_WhenCompanyIdMismatch()
+        {
+            // Arrange
+            var userId = 1;
+            var user = new User { Id = userId, CompanyId = 2 };
+            _userServiceMock.Setup(service => service.GetUserByIdAsync(userId)).ReturnsAsync(user);
+
+            // Act
+            var result = await _usersController.DeleteUser(userId).ConfigureAwait(false);
+
+            // Assert
+            Assert.IsInstanceOf<BadRequestObjectResult>(result);
         }
     }
 }

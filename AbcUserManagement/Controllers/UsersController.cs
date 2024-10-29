@@ -33,11 +33,7 @@ namespace AbcUserManagement.Controllers
 
                 _logger.LogInformation("Getting users for company ID: {CompanyId} by role: {Role}", companyId, role);
 
-                var users = await _userService.GetUsersByCompanyIdAsync(companyId).ConfigureAwait(false);
-                if (role == Role.User.ToString())
-                {
-                    users = users.Where(u => u.Role != Role.Admin);
-                }
+                var users = await _userService.GetUsersByCompanyIdAsync(companyId, role).ConfigureAwait(false);
 
                 return Ok(users);
             }
@@ -53,9 +49,12 @@ namespace AbcUserManagement.Controllers
         {
             try
             {
+                var companyId = int.Parse(User.FindFirst("CompanyId").Value);
+                var role = User.FindFirst(ClaimTypes.Role).Value;
+
                 _logger.LogInformation("Getting user by ID: {Id}", id);
                 var user = await _userService.GetUserByIdAsync(id).ConfigureAwait(false);
-                if (user == null)
+                if (user == null || user.CompanyId != companyId || (role == Role.User.ToString() && user.Role == Role.Admin))
                 {
                     return NotFound();
                 }
@@ -70,40 +69,87 @@ namespace AbcUserManagement.Controllers
 
         [HttpPost]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> AddUser([FromBody] User user)
+        public async Task<IActionResult> AddUser([FromBody] UserRequest userRequest)
         {
             try
             {
+                var companyId = int.Parse(User.FindFirst("CompanyId").Value);
+                var createdBy = User.FindFirst(ClaimTypes.Name)?.Value;
+                if (string.IsNullOrEmpty(createdBy))
+                {
+                    return Unauthorized("User is not authenticated.");
+                }
+
+                if (userRequest.CompanyId != companyId)
+                {
+                    return BadRequest("Cannot create a user for a different company.");
+                }
+
+                if (!Enum.TryParse(userRequest.Role, true, out Role role))
+                {
+                    return BadRequest("Invalid role specified.");
+                }
+
+                var user = new User
+                {
+                    Username = userRequest.Username,
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword(userRequest.Password),
+                    Role = role,
+                    CompanyId = userRequest.CompanyId
+                };
+
                 _logger.LogInformation("Adding user: {Username}", user.Username);
-                await _userService.AddUserAsync(user).ConfigureAwait(false);
+                await _userService.AddUserAsync(user, createdBy).ConfigureAwait(false);
                 return CreatedAtAction(nameof(GetUserById), new { id = user.Id }, user);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error adding user: {Username}", user.Username);
+                _logger.LogError(ex, "Error adding user: {Username}", userRequest.Username);
                 return StatusCode(500, "Internal server error");
             }
         }
 
         [HttpPut("{id}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> UpdateUser(int id, [FromBody] User user)
+        public async Task<IActionResult> UpdateUser(int id, [FromBody] UserRequest userRequest)
         {
-            if (id != user.Id)
-            {
-                _logger.LogWarning("Update user failed: ID mismatch");
-                return BadRequest();
-            }
-
             try
             {
+                var companyId = int.Parse(User.FindFirst("CompanyId").Value);
+                var user = await _userService.GetUserByIdAsync(id).ConfigureAwait(false);
+                if (user == null)
+                {
+                    return NotFound();
+                }
+
+                if (user.CompanyId != companyId)
+                {
+                    return BadRequest("Cannot update a user from a different company.");
+                }
+
+                var modifiedBy = User.FindFirst(ClaimTypes.Name)?.Value;
+                if (string.IsNullOrEmpty(modifiedBy))
+                {
+                    return Unauthorized("User is not authenticated.");
+                }
+
+                if (!Enum.TryParse(userRequest.Role, true, out Role role))
+                {
+                    return BadRequest("Invalid role specified.");
+                }
+
+                user.Username = userRequest.Username;
+                user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(userRequest.Password);
+                user.Role = role;
+                user.CompanyId = userRequest.CompanyId;
+
                 _logger.LogInformation("Updating user: {Id}", user.Id);
-                await _userService.UpdateUserAsync(user).ConfigureAwait(false);
+                await _userService.UpdateUserAsync(user, modifiedBy).ConfigureAwait(false);
                 return NoContent();
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error updating user: {Id}", user.Id);
+                _logger.LogError(ex, "Error updating user: {Id}", id);
                 return StatusCode(500, "Internal server error");
             }
         }
@@ -114,7 +160,25 @@ namespace AbcUserManagement.Controllers
         {
             try
             {
-                _logger.LogInformation("Deleting user: {Id}", id);
+                var companyId = int.Parse(User.FindFirst("CompanyId").Value);
+                var user = await _userService.GetUserByIdAsync(id).ConfigureAwait(false);
+                if (user == null)
+                {
+                    return NotFound();
+                }
+
+                if (user.CompanyId != companyId)
+                {
+                    return BadRequest("Cannot delete a user from a different company.");
+                }
+
+                var deletedBy = User.FindFirst(ClaimTypes.Name)?.Value;
+                if (string.IsNullOrEmpty(deletedBy))
+                {
+                    return Unauthorized("User is not authenticated.");
+                }
+
+                _logger.LogInformation("Deleting user: {Id} by {DeletedBy}", id, deletedBy);
                 await _userService.DeleteUserAsync(id).ConfigureAwait(false);
                 return NoContent();
             }
