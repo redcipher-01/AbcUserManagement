@@ -65,21 +65,31 @@ AbcUserManagement/
    Run the following SQL script to create the necessary tables:
 
    ```sql
-   -- Create the Companies table
-   CREATE TABLE Companies (
-       Id INT PRIMARY KEY IDENTITY,
-       Name NVARCHAR(100) NOT NULL
-   );
-
-   -- Create the Users table
-   CREATE TABLE Users (
-       Id INT PRIMARY KEY IDENTITY,
-       Username NVARCHAR(50) NOT NULL,
-       Password NVARCHAR(50) NOT NULL,
-       Role NVARCHAR(20) NOT NULL,
-       CompanyId INT NOT NULL,
-       FOREIGN KEY (CompanyId) REFERENCES Companies(Id)
-   );
+    -- Create the database
+    CREATE DATABASE AbcUserManagement;
+    
+    -- Use the database
+    USE AbcUserManagement;
+    
+    -- Create the Companies table
+    CREATE TABLE Companies (
+        Id INT PRIMARY KEY IDENTITY,
+        Name NVARCHAR(100) NOT NULL
+    );
+    
+    -- Create the Users table
+    CREATE TABLE Users (
+        Id INT PRIMARY KEY IDENTITY,
+        Username NVARCHAR(50) NOT NULL,
+        PasswordHash NVARCHAR(255) NOT NULL,
+        Role NVARCHAR(20) NOT NULL,
+        CompanyId INT NOT NULL,
+        CreatedBy NVARCHAR(50),
+        CreatedDate DATETIME,
+        ModifiedBy NVARCHAR(50),
+        ModifiedDate DATETIME,
+        FOREIGN KEY (CompanyId) REFERENCES Companies(Id)
+    );
    ```
 
 2. **Seed Initial Data**
@@ -87,15 +97,15 @@ AbcUserManagement/
    Run the following SQL script to seed initial data:
 
    ```sql
-   -- Insert initial data into the Companies table
-   INSERT INTO Companies (Name) VALUES ('Company A');
-   INSERT INTO Companies (Name) VALUES ('Company B');
-
-   -- Insert initial data into the Users table
-   INSERT INTO Users (Username, Password, Role, CompanyId) VALUES ('admin1', 'password1', 'Admin', 1);
-   INSERT INTO Users (Username, Password, Role, CompanyId) VALUES ('user1', 'password1', 'User', 1);
-   INSERT INTO Users (Username, Password, Role, CompanyId) VALUES ('admin2', 'password2', 'Admin', 2);
-   INSERT INTO Users (Username, Password, Role, CompanyId) VALUES ('user2', 'password2', 'User', 2);
+    -- Insert initial data into the Companies table
+    INSERT INTO Companies (Name) VALUES ('Company A');
+    INSERT INTO Companies (Name) VALUES ('Company B');
+    
+    -- Insert initial data into the Users table
+    INSERT INTO Users (Username, PasswordHash, Role, CompanyId, CreatedBy, CreatedDate) VALUES ('admin1', '$2a$11$Jprs6nzu6dmalcB.uTaIP.ki2qtKFuSY/.tliSysj9a80Tyi9zZ7u', 'Admin', 1, 'system', GETDATE());
+    INSERT INTO Users (Username, PasswordHash, Role, CompanyId, CreatedBy, CreatedDate) VALUES ('user1', '$2a$11$Jprs6nzu6dmalcB.uTaIP.ki2qtKFuSY/.tliSysj9a80Tyi9zZ7u', 'User', 1, 'system', GETDATE());
+    INSERT INTO Users (Username, PasswordHash, Role, CompanyId, CreatedBy, CreatedDate) VALUES ('admin2', '$2a$11$Jprs6nzu6dmalcB.uTaIP.ki2qtKFuSY/.tliSysj9a80Tyi9zZ7u', 'Admin', 2, 'system', GETDATE());
+    INSERT INTO Users (Username, PasswordHash, Role, CompanyId, CreatedBy, CreatedDate) VALUES ('user2', '$2a$11$Jprs6nzu6dmalcB.uTaIP.ki2qtKFuSY/.tliSysj9a80Tyi9zZ7u', 'User', 2, 'system', GETDATE());
    ```
 
 ### Application Setup
@@ -303,3 +313,10 @@ Contributions are welcome! Please open an issue or submit a pull request for any
 ## License
 
 This project is licensed under the MIT License.
+
+
+### Summary of Changes
+
+- **Database Schema**: Updated the `Users` table to include `PasswordHash`, `CreatedBy`, `CreatedDate`, `ModifiedBy`, and `ModifiedDate` columns.
+- **Authentication**: Ensure the [`GenerateJwtToken`](command:_github.copilot.openSymbolFromReferences?%5B%22%22%2C%5B%7B%22uri%22%3A%7B%22scheme%22%3A%22file%22%2C%22authority%22%3A%22%22%2C%22path%22%3A%22%2FUsers%2Freynananislag%2FProjects%2FAbcUserManagement%2FAbcUserManagement%2FControllers%2FAuthController.cs%22%2C%22query%22%3A%22%22%2C%22fragment%22%3A%22%22%7D%2C%22pos%22%3A%7B%22line%22%3A42%2C%22character%22%3A28%7D%7D%5D%2C%22932a8d3e-b41f-4c9d-bd71-0f8a8c882545%22%5D "Go to definition") method includes the [`UserId`](command:_github.copilot.openSymbolFromReferences?%5B%22%22%2C%5B%7B%22uri%22%3A%7B%22scheme%22%3A%22file%22%2C%22authority%22%3A%22%22%2C%22path%22%3A%22%2FUsers%2Freynananislag%2FProjects%2FAbcUserManagement%2FAbcUserManagement%2FControllers%2FAuthController.cs%22%2C%22query%22%3A%22%22%2C%22fragment%22%3A%22%22%7D%2C%22pos%22%3A%7B%22line%22%3A62%2C%22character%22%3A31%7D%7D%5D%2C%22932a8d3e-b41f-4c9d-bd71-0f8a8c882545%22%5D "Go to definition") claim.
+- **Throttling Middleware**: Ensure the middleware correctly extracts the [`UserId`](command:_github.copilot.openSymbolFromReferences?%5B%22%22%2C%5B%7B%22uri%22%3A%7B%22scheme%22%3A%22file%22%2C%22authority%22%3A%22%22%2C%22path%22%3A%22%2FUsers%2Freynananislag%2FProjects%2FAbcUserManagement%2FAbcUserManagement%2FControllers%2FAuthController.cs%22%2C%22query%22%3A%22%22%2C%22fragment%22%3A%22%22%7D%2C%22pos%22%3A%7B%22line%22%3A62%2C%22character%22%3A31%7D%7D%5D%2C%22932a8d3e-b41f-4c9d-bd71-0f8a8c882545%22%5D "Go to definition") from the claims.
