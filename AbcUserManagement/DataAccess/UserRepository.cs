@@ -70,8 +70,9 @@ namespace AbcUserManagement.DataAccess
                 _logger.LogInformation("Adding user: {Username}", user.Username);
                 var sql = @"
                     INSERT INTO Users (Username, Password, Role, CompanyId, CreatedBy, CreatedDate)
-                    VALUES (@Username, @PasswordHash, @Role, @CompanyId, @CreatedBy, @CreatedDate)";
-                await _dbConnection.ExecuteAsync(sql, new
+                    VALUES (@Username, @PasswordHash, @Role, @CompanyId, @CreatedBy, @CreatedDate);
+                    SELECT CAST(SCOPE_IDENTITY() as int)";
+                var id = await _dbConnection.QuerySingleAsync<int>(sql, new
                 {
                     user.Username,
                     user.PasswordHash,
@@ -80,6 +81,7 @@ namespace AbcUserManagement.DataAccess
                     user.CreatedBy,
                     user.CreatedDate
                 }).ConfigureAwait(false);
+                user.Id = id;
             }
             catch (Exception ex)
             {

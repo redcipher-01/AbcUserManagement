@@ -53,8 +53,8 @@ namespace AbcUserManagement.Controllers
                 var role = User.FindFirst(ClaimTypes.Role).Value;
 
                 _logger.LogInformation("Getting user by ID: {Id}", id);
-                var user = await _userService.GetUserByIdAsync(id).ConfigureAwait(false);
-                if (user == null || user.CompanyId != companyId || (role == Role.User.ToString() && user.Role == Role.Admin))
+                var user = await _userService.GetUserByIdAsync(id, companyId, role).ConfigureAwait(false);
+                if (user == null || user.CompanyId != companyId)
                 {
                     return NotFound();
                 }
@@ -74,33 +74,30 @@ namespace AbcUserManagement.Controllers
             try
             {
                 var companyId = int.Parse(User.FindFirst("CompanyId").Value);
-                var createdBy = User.FindFirst(ClaimTypes.Name)?.Value;
-                if (string.IsNullOrEmpty(createdBy))
-                {
-                    return Unauthorized("User is not authenticated.");
-                }
+                var role = User.FindFirst(ClaimTypes.Role).Value;
+                var createdBy = User.FindFirst(ClaimTypes.Name).Value;
 
                 if (userRequest.CompanyId != companyId)
                 {
-                    return BadRequest("Cannot create a user for a different company.");
-                }
-
-                if (!Enum.TryParse(userRequest.Role, true, out Role role))
-                {
-                    return BadRequest("Invalid role specified.");
+                    return BadRequest("Cannot add user to a different company.");
                 }
 
                 var user = new User
                 {
                     Username = userRequest.Username,
                     PasswordHash = BCrypt.Net.BCrypt.HashPassword(userRequest.Password),
-                    Role = role,
+                    Role = Enum.TryParse(userRequest.Role, true, out Role parsedRole) ? parsedRole : Role.User,
                     CompanyId = userRequest.CompanyId
                 };
 
                 _logger.LogInformation("Adding user: {Username}", user.Username);
-                await _userService.AddUserAsync(user, createdBy).ConfigureAwait(false);
+                await _userService.AddUserAsync(user, companyId, role, createdBy).ConfigureAwait(false);
                 return CreatedAtAction(nameof(GetUserById), new { id = user.Id }, user);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                _logger.LogWarning(ex, "Unauthorized access while adding user: {Username}", userRequest.Username);
+                return Forbid(ex.Message);
             }
             catch (Exception ex)
             {
@@ -116,36 +113,31 @@ namespace AbcUserManagement.Controllers
             try
             {
                 var companyId = int.Parse(User.FindFirst("CompanyId").Value);
-                var user = await _userService.GetUserByIdAsync(id).ConfigureAwait(false);
-                if (user == null)
+                var role = User.FindFirst(ClaimTypes.Role).Value;
+                var modifiedBy = User.FindFirst(ClaimTypes.Name).Value;
+
+                if (userRequest.CompanyId != companyId)
                 {
-                    return NotFound();
+                    return BadRequest("Cannot update user to a different company.");
                 }
 
-                if (user.CompanyId != companyId)
+                var user = new User
                 {
-                    return BadRequest("Cannot update a user from a different company.");
-                }
-
-                var modifiedBy = User.FindFirst(ClaimTypes.Name)?.Value;
-                if (string.IsNullOrEmpty(modifiedBy))
-                {
-                    return Unauthorized("User is not authenticated.");
-                }
-
-                if (!Enum.TryParse(userRequest.Role, true, out Role role))
-                {
-                    return BadRequest("Invalid role specified.");
-                }
-
-                user.Username = userRequest.Username;
-                user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(userRequest.Password);
-                user.Role = role;
-                user.CompanyId = userRequest.CompanyId;
+                    Id = id,
+                    Username = userRequest.Username,
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword(userRequest.Password),
+                    Role = Enum.TryParse(userRequest.Role, true, out Role parsedRole) ? parsedRole : Role.User,
+                    CompanyId = userRequest.CompanyId
+                };
 
                 _logger.LogInformation("Updating user: {Id}", user.Id);
-                await _userService.UpdateUserAsync(user, modifiedBy).ConfigureAwait(false);
+                await _userService.UpdateUserAsync(user, companyId, role, modifiedBy).ConfigureAwait(false);
                 return NoContent();
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                _logger.LogWarning(ex, "Unauthorized access while updating user: {Id}", id);
+                return Forbid(ex.Message);
             }
             catch (Exception ex)
             {
@@ -161,26 +153,22 @@ namespace AbcUserManagement.Controllers
             try
             {
                 var companyId = int.Parse(User.FindFirst("CompanyId").Value);
-                var user = await _userService.GetUserByIdAsync(id).ConfigureAwait(false);
-                if (user == null)
+                var role = User.FindFirst(ClaimTypes.Role).Value;
+
+                _logger.LogInformation("Deleting user: {Id} by {DeletedBy}", id, companyId);
+                var user = await _userService.GetUserByIdAsync(id, companyId, role).ConfigureAwait(false);
+                if (user == null || user.CompanyId != companyId)
                 {
                     return NotFound();
                 }
 
-                if (user.CompanyId != companyId)
-                {
-                    return BadRequest("Cannot delete a user from a different company.");
-                }
-
-                var deletedBy = User.FindFirst(ClaimTypes.Name)?.Value;
-                if (string.IsNullOrEmpty(deletedBy))
-                {
-                    return Unauthorized("User is not authenticated.");
-                }
-
-                _logger.LogInformation("Deleting user: {Id} by {DeletedBy}", id, deletedBy);
-                await _userService.DeleteUserAsync(id).ConfigureAwait(false);
+                await _userService.DeleteUserAsync(id, companyId, role).ConfigureAwait(false);
                 return NoContent();
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                _logger.LogWarning(ex, "Unauthorized access while deleting user: {Id}", id);
+                return Forbid(ex.Message);
             }
             catch (Exception ex)
             {

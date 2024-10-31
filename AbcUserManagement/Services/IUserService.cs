@@ -7,11 +7,11 @@ namespace AbcUserManagement.Services
 {
     public interface IUserService
     {
-        Task<User> GetUserByIdAsync(int id);
+        Task<User> GetUserByIdAsync(int id, int companyId, string role);
         Task<IEnumerable<User>> GetUsersByCompanyIdAsync(int companyId, string role);
         Task<User> GetUserByUsernameAsync(string username);
-        Task AddUserAsync(User user, string createdBy);
-        Task UpdateUserAsync(User user, string modifiedBy);
-        Task DeleteUserAsync(int id);
+        Task AddUserAsync(User user, int companyId, string role, string createdBy);
+        Task UpdateUserAsync(User user, int companyId, string role, string modifiedBy);
+        Task DeleteUserAsync(int id, int companyId, string role);
     }
 }

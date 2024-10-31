@@ -66,7 +66,7 @@ namespace AbcUserManagement.UnitTests
             // Arrange
             var userId = 1;
             var user = new User { Id = userId, Username = "test", CompanyId = 1 };
-            _userServiceMock.Setup(service => service.GetUserByIdAsync(userId)).ReturnsAsync(user);
+            _userServiceMock.Setup(service => service.GetUserByIdAsync(userId, 1, "Admin")).ReturnsAsync(user);
 
             // Act
             var result = await _usersController.GetUserById(userId).ConfigureAwait(false);
@@ -82,7 +82,7 @@ namespace AbcUserManagement.UnitTests
         {
             // Arrange
             var userId = 1;
-            _userServiceMock.Setup(service => service.GetUserByIdAsync(userId)).ReturnsAsync((User)null);
+            _userServiceMock.Setup(service => service.GetUserByIdAsync(userId, 1, "Admin")).ReturnsAsync((User)null);
 
             // Act
             var result = await _usersController.GetUserById(userId).ConfigureAwait(false);
@@ -103,7 +103,7 @@ namespace AbcUserManagement.UnitTests
                 Role = Role.User,
                 CompanyId = userRequest.CompanyId
             };
-            _userServiceMock.Setup(service => service.AddUserAsync(It.IsAny<User>(), "admin")).Returns(Task.CompletedTask);
+            _userServiceMock.Setup(service => service.AddUserAsync(It.IsAny<User>(), 1, "Admin", "admin")).Returns(Task.CompletedTask);
 
             // Act
             var result = await _usersController.AddUser(userRequest).ConfigureAwait(false);
@@ -127,8 +127,8 @@ namespace AbcUserManagement.UnitTests
                 Role = Role.User,
                 CompanyId = userRequest.CompanyId
             };
-            _userServiceMock.Setup(service => service.GetUserByIdAsync(user.Id)).ReturnsAsync(user);
-            _userServiceMock.Setup(service => service.UpdateUserAsync(It.IsAny<User>(), "admin")).Returns(Task.CompletedTask);
+            _userServiceMock.Setup(service => service.GetUserByIdAsync(user.Id, 1, "Admin")).ReturnsAsync(user);
+            _userServiceMock.Setup(service => service.UpdateUserAsync(It.IsAny<User>(), 1, "Admin", "admin")).Returns(Task.CompletedTask);
 
             // Act
             var result = await _usersController.UpdateUser(user.Id, userRequest).ConfigureAwait(false);
@@ -143,8 +143,8 @@ namespace AbcUserManagement.UnitTests
             // Arrange
             var userId = 1;
             var user = new User { Id = userId, CompanyId = 1 };
-            _userServiceMock.Setup(service => service.GetUserByIdAsync(userId)).ReturnsAsync(user);
-            _userServiceMock.Setup(service => service.DeleteUserAsync(userId)).Returns(Task.CompletedTask);
+            _userServiceMock.Setup(service => service.GetUserByIdAsync(userId, 1, "Admin")).ReturnsAsync(user);
+            _userServiceMock.Setup(service => service.DeleteUserAsync(userId, 1, "Admin")).Returns(Task.CompletedTask);
 
             // Act
             var result = await _usersController.DeleteUser(userId).ConfigureAwait(false);
@@ -179,7 +179,7 @@ namespace AbcUserManagement.UnitTests
                 Role = Role.User,
                 CompanyId = 1
             };
-            _userServiceMock.Setup(service => service.GetUserByIdAsync(user.Id)).ReturnsAsync(user);
+            _userServiceMock.Setup(service => service.GetUserByIdAsync(user.Id, 1, "Admin")).ReturnsAsync(user);
 
             // Act
             var result = await _usersController.UpdateUser(user.Id, userRequest).ConfigureAwait(false);
@@ -194,7 +194,7 @@ namespace AbcUserManagement.UnitTests
             // Arrange
             var userId = 1;
             var user = new User { Id = userId, CompanyId = 2 };
-            _userServiceMock.Setup(service => service.GetUserByIdAsync(userId)).ReturnsAsync(user);
+            _userServiceMock.Setup(service => service.GetUserByIdAsync(userId, 1, "Admin")).ReturnsAsync(user);
 
             // Act
             var result = await _usersController.DeleteUser(userId).ConfigureAwait(false);
