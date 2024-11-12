@@ -17,6 +17,7 @@ AbcUserManagement is a web API built with .NET 7 that provides JWT authenticatio
 
 - .NET 7
 - Dapper for data access
+- N-Tier/Layered Architecture
 - MS SQL for database
 - NUnit for testing
 
